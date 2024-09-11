@@ -1,0 +1,51 @@
+﻿@page "/EandD"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+
+<h3>E & D Marketing</h3>
+<a href="/EandD/contact">Contact Us</a>
+<AuthorizeView Roles="Eanddmarketing">
+    <a href="EandD/contactList">Contact List</a>
+</AuthorizeView>
+
+<p>
+    <h3>Financial Advice</h3>
+    <div class="row justify-content-center">
+        <div class="col-sm-3">
+            E&D provides world class financial advice!<br /><br /> Wondering how to secure the best loan rates?<br /> Wanting to "Optimize" your tax burden?<br /><br /> We are the corporation for you!
+        </div>
+        <div class="col">
+            <img style="height:250px;" src="/Images/GenericAdvice.jpg" />
+        </div>        
+    </div>
+</p>
+
+<p>
+    <h3>Freight forwarding</h3>
+    <div class="row justify-content-center">
+        <div class="col-sm-3">
+            <img style="height:250px;" src="/Images/freightSunset.jpg" />
+        </div>
+        <div class="col">
+            E&D provides world class freight forwarding services.<br /><br />Never worry about securing payment again!<br /><br/> E&D ensures that your payment is secured before you ship your goods.
+        </div>        
+    </div>    
+</p>
+
+<p>
+    <h3>Inventory Accounting</h3>
+    <div class="row justify-content-center">
+        <div class="col-sm-3">
+            <br/><br/>
+            E&D will help you manage your inventory with our amazing world-class depreciation calculator application!
+        </div>
+        <div class="col">
+            <img style="height:250px;" src="/Images/InventoryPlaceholder.jpg" />
+        </div>
+    </div>    
+</p>
+
+@code {
+    
+    
+}

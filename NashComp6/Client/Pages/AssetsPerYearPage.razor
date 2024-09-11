@@ -1,0 +1,109 @@
+﻿@using NashComp6.Shared.Models;
+@using WebAssemblyMan
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@page "/assetsperyear"
+@inject HttpClient http;
+@attribute [Authorize];
+
+@if (assets != null)
+{
+    <center>
+        <h3>Inventory Values For Each Year An Asset(s) Was Removed</h3>
+        @*Display the total value and years that items left inventory*@
+        @for (int i = 0; i < yearValue.Count(); i++)
+        {
+
+            <label>$ @yearValue[i] in year @yearsOfAssets[i] </label>
+            <br />
+            <label>---------------------------------------------</label>
+            <br />
+        }
+    </center>
+    <VerticalBarChart InputData=@barInputData
+                      InputLabels=@barInputLabels>
+    </VerticalBarChart>
+
+    <LineChart InputSeries1=@barInputData
+               XAxisLabels=@barInputLabels
+               InputLabels="Inventory Worth">
+    </LineChart>
+}
+else
+{
+    <label>No Assets At This Time</label>
+}
+
+
+@code {
+    private List<Asset>? assets;
+
+    //index will match for these ie index 0 refers to the same year for both list.
+    private List<int> yearsOfAssets = new List<int>();
+    private List<float> yearValue = new List<float>();
+
+    private string barInputLabels = "";
+    private string barInputData = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        assets = await http.GetFromJsonAsync<List<Asset>>($"api/asset");
+
+        if (assets != null)
+        {
+            foreach (Asset a in assets)
+            {
+                //Create a list of years based on the time a item first left inventory to the year it last left inventory
+                if (!yearsOfAssets.Contains(a.LeftInventroy.Year))
+                {
+                    yearsOfAssets.Add(a.LeftInventroy.Year);
+                }
+            }
+
+            //find the total value of inventory
+            foreach (int year in yearsOfAssets)
+            {
+                float totalValue = 0;
+
+                foreach (Asset a in assets)
+                {
+                    //make sure it has already left inventory
+                    if (year < a.LeftInventroy.Year)
+                    {
+                        //make sure that the item has entered inventory for the current year we are checking
+                        if (year > a.EnteredInventory.Year)
+                        {
+                            totalValue += a.StartingValue - (a.AnnualDeprec * (year - a.EnteredInventory.Year));
+                        }
+                        else if (year == a.EnteredInventory.Year)
+                        {
+                            //just add the starting value as it has started to depreciate
+                            totalValue += a.StartingValue;
+                        }
+                    }
+
+                }
+
+                //add the total value to the list
+                yearValue.Add(totalValue);
+                barInputLabels += year.ToString() + ", ";
+
+
+                barInputData += totalValue.ToString() + ", ";
+
+            }
+
+            //trim extra commas and whitespace
+            barInputLabels = barInputLabels.TrimEnd(' ');
+            barInputLabels = barInputLabels.TrimEnd(',');
+            barInputData = barInputData.TrimEnd(' ');
+            barInputData = barInputData.TrimEnd(',');
+        }
+
+
+
+    }
+}

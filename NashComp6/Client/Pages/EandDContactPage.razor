@@ -1,0 +1,133 @@
+﻿@page "/EandD/contact"
+@using NashComp6.Shared.Models;
+
+@inject HttpClient http
+@inject NavigationManager NavManager
+
+
+<h3>E & D Contact</h3>
+
+@if (contact == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+
+    <EditForm Model="@contact" OnValidSubmit="@OnSubmitClicked">
+        <DataAnnotationsValidator />
+
+        <div class="form-group">
+            <label for="firstName">First Name</label>
+            <InputText class="form-control" id="firstName" aria-describedby="Enter Your First Name" placeholder="Enter First Name" @bind-Value="contact.FirstName" />
+
+            <small id="nameHelp" class="form-text text-muted">Enter a Name</small>
+            <ValidationMessage For="()=>contact.FirstName" />
+        </div>
+
+        <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <InputText class="form-control" id="LastName" aria-describedby="Enter Your Last Name" placeholder="Enter Last Name" @bind-Value="contact.LastName" />
+
+            <small id="nameHelp" class="form-text text-muted">Enter a Name</small>
+            <ValidationMessage For="()=>contact.LastName" />
+        </div>
+
+        <div class="form-group">
+            <label for="company">Company Name</label>
+            <InputText class="form-control" id="companyName" aria-describedby="Enter Your Company Name" placeholder="Enter Company Name" @bind-Value="contact.CompanyName" />
+
+            <small id="nameHelp" class="form-text text-muted">Enter a Name</small>
+            <ValidationMessage For="()=>contact.CompanyName" />
+        </div>
+        <br/>
+        <div class="form-group">
+            <h5>Services Interested In</h5>
+            <label for="FinacialAdvice">Financial Advice: </label>
+            <InputCheckbox @bind-Value="contact.FinacialAdvice" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <label for="FreightForwarding">Freight Forwarding: </label>
+            <InputCheckbox @bind-Value="contact.FreightForwarding" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <label for="InventoryAccounting">Inventory Accounting: </label>
+            <InputCheckbox @bind-Value="contact.InventoryAccounting" />
+        </div>
+        <br/>
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <InputText class="form-control" id="emailAdd" aria-describedby="Enter Your Email Address" placeholder="Enter Email" @bind-Value="contact.Email" />
+
+            <small id="emailHelp" class="form-text text-muted">Enter a Email</small>
+            <ValidationMessage For="()=>contact.Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <InputText class="form-control" id="phone" aria-describedby="Enter Your Phone Number" placeholder="Enter Phone #" @bind-Value="contact.PhoneNumber" />
+
+            <small id="phoneHelp" class="form-text text-muted">Enter a Phone</small>
+            <ValidationMessage For="()=>contact.PhoneNumber" />
+        </div>
+
+        <div class="form-group">
+            <label for="website">Website</label>
+            <InputText class="form-control" id="websiteURL" aria-describedby="Enter Your Webstie URL" placeholder="Enter Website URL" @bind-Value="contact.Website" />
+
+            <small id="websiteHelp" class="form-text text-muted">Enter a URL</small>
+            <ValidationMessage For="()=>contact.Website" />
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+
+        <ValidationSummary /> @*If validation fails, gives user the reason it failed*@
+        <button type="submit" class="btn btn-danger" @onclick="OnCancelClicked">Cancel</button>
+    </EditForm>
+}
+
+
+@code {
+    [Parameter]
+    public int? Id { get; set; } = null;
+
+    private Contact? contact = new Contact();
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        if (Id == null)
+        {
+            contact = new Contact();
+        }
+        else
+        {
+            contact = await http.GetFromJsonAsync<Contact>($"api/Contact/{Id}");
+
+        }
+
+    }
+
+    protected async void OnSubmitClicked()
+    {
+        if (contact?.Id == 0)//means new post
+        {
+            var result = await http.PostAsJsonAsync<Contact>("api/Contact", contact);
+
+            if (result.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("asset");
+            }
+        }
+        else if (contact == null)
+        {
+            //add alert no post to update
+        }
+        else
+        {
+            var result = await http.PutAsJsonAsync<Contact>("api/Contact", contact);
+        }
+
+        NavManager.NavigateTo("EandD");
+    }
+
+    protected void OnCancelClicked()
+    {
+        NavManager.NavigateTo("EandD");
+    }
+}

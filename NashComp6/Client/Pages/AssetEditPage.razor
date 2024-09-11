@@ -1,0 +1,304 @@
+﻿@using NashComp6.Shared.Models;
+@using WebAssemblyMan
+
+
+@page "/editasset/{Id:int}"
+@page "/editasset"
+@inject HttpClient http
+@inject NavigationManager NavManager
+
+
+<h3>Asset Edit and Add</h3>
+
+
+@if (asset == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @if (!showLeftDate)
+    {
+        <EditForm Model="@asset" OnValidSubmit="@OnSumbitClicked">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label for="title">Title</label>
+                <InputText class="form-control" id="title" aria-describedby="title of asset" placeholder="Enter Title" @bind-Value="asset.Title" />
+
+                <small id="titleHelp" class="form-text text-muted">Enter a title</small>
+                <ValidationMessage For="()=>asset.Title" />
+            </div>
+
+            <div class="form-group">
+                <label for="startingValue">Starting Value</label>
+                <InputNumber class="form-control" id="startingValue" aria-describedby="Asset Starting Value" placeholder="Enter Value" @bind-Value="asset.StartingValue" />
+
+                <small id="valueHelp" class="form-text text-muted">Enter a value</small>
+                <ValidationMessage For="()=>asset.StartingValue" />
+            </div>
+
+            <div class="form-group">
+                <label for="salvageValue">Salvage Value</label>
+                <InputNumber class="form-control" id="salvageValue" aria-describedby="Asset Salvage Value" placeholder="Enter Value" @bind-Value="asset.SalvageValue" />
+
+                <small id="valueHelp" class="form-text text-muted">Enter a value</small>
+                <ValidationMessage For="()=>asset.SalvageValue" />
+            </div>
+
+            <div class="form-group">
+                <label for="dateEntered">Date Entered</label>
+                <InputDate class="form-control" id="dateEnteredInven" placeholder="Enter date"
+                @bind-Value="asset.EnteredInventory" />
+                <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+
+            <ValidationSummary /> @*If validation fails, gives user the reason it failed*@
+            <button type="submit" class="btn btn-danger" @onclick="OnCancelClicked">Cancel</button>
+        </EditForm>
+
+
+        <div>
+            <h3>Change Years of Graph</h3>
+            <div class="form-group">
+                <label for="yearStart">Year Start</label>
+                <input type="year" id="startYear" class="form-control" @bind="yearStart" />
+                <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+            </div>
+
+            <div class="form-group">
+                <label for="yearEnd">Year End</label>
+                <input type="year" id="endYear" class="form-control" @bind="yearEnd" />
+                <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary" @onclick="OnChangeClicked">Change</button>
+        </div>
+
+        <center>
+            @*Show a table of the year and the value and next to it the graph of it*@
+            <h2>Detailed View @asset.Title</h2>
+            <div class="row">
+                <div class="col-md-4">
+
+                    @if (true) @*Always reset year count to 0*@
+                    {
+                        yearCount = 0;
+                    }
+
+                    @for (int i = asset.EnteredInventory.Year; i <= asset.LeftInventroy.Year; i++, yearCount++)
+                    {
+                        <label>Year @i      Value @(asset.StartingValue - (asset.AnnualDeprec * yearCount))</label>
+                        <br />
+                        <label>---------------------------------------------</label>
+                        <br />
+
+                    }
+                </div>
+                @if (!yearChanged)
+                {
+                    @if (!invalidYears)
+                    {
+                        <div class="col-md-8">
+                            <LineChart InputSeries1=@lineChartData
+                                       XAxisLabels=@lineChartLabels
+                                       InputLabels="Asset Yearly Worth">
+                            </LineChart>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="col-md-8">
+                            <label>Must Pick Valid Years The Asset Was In Inventory (Year Start must be before Year End)</label>
+                        </div>
+                    }
+                }
+                else
+                {
+                    @if (!invalidYears)
+                    {
+                        <div class="col-md-8">
+                            <LineChart InputSeries1=@lineChartDataB
+                                       XAxisLabels=@lineChartLabelsB
+                                       InputLabels="Asset Yearly Worth">
+                            </LineChart>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="col-md-8">
+                            <label>Must Pick Valid Years The Asset Was In Inventory (Year Start must be before Year End)</label>
+                        </div>
+                    }
+                }
+
+            </div>
+        </center>
+    }
+    else
+    {
+        <p>Now enter the date that the asset left or will leave inventory</p>
+
+
+        <div class="form-group">
+            <label for="dateLeft">Date Left</label>
+            <InputDate class="form-control" id="dateLeftInven" placeholder="Enter date"
+            @bind-Value="asset.LeftInventroy" />
+            <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+        </div>
+
+        @if (invalidLeft)
+        {
+            <label style="color:red;">Date Left must be after @asset.EnteredInventory to be valid</label>
+        }
+        <br />
+        <button type="submit" class="btn btn-primary" @onclick="@OnReadyClicked">Ready</button>
+
+    }
+
+}
+
+
+@code {
+    [Parameter]
+    public int? Id { get; set; } = null;
+
+    private Asset? asset = new Asset();
+
+    private bool showLeftDate = false;
+    private bool invalidLeft = false;
+
+    private int yearCount = 0;
+    private string lineChartLabels = "";
+    private string lineChartData = "";
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        if (Id == null)
+        {
+            asset = new Asset();
+        }
+        else
+        {
+            asset = await http.GetFromJsonAsync<Asset>($"api/asset/{Id}");
+            if (asset != null)
+            {
+                //get the value each year of depreciation and truncate the year to 2 digit years for space on page
+                for (int i = asset.EnteredInventory.Year; i <= asset.LeftInventroy.Year; i++, yearCount++)
+                {
+                    lineChartData += (asset.StartingValue - (asset.AnnualDeprec * yearCount)).ToString() + ", ";
+                    lineChartLabels += i.ToString().Substring(2) + ", ";
+                }
+
+                //trim so strings are in proper form
+                lineChartLabels = lineChartLabels.TrimEnd(' ');
+                lineChartLabels = lineChartLabels.TrimEnd(',');
+                lineChartData = lineChartData.TrimEnd(' ');
+                lineChartData = lineChartData.TrimEnd(',');
+                //put yearcount back to 0 for @for loop in html section
+                yearCount = 0;
+            }
+            
+        }
+
+    }
+
+    protected async void OnReadyClicked()
+    {
+        if (asset.LeftInventroy > asset.EnteredInventory)
+        {
+            if (asset?.Id == 0)//means new post
+            {
+                var result = await http.PostAsJsonAsync<Asset>("api/Asset", asset);
+
+                if (result.IsSuccessStatusCode)
+                {
+                    NavManager.NavigateTo("asset");
+                }
+            }
+            else if (asset == null)
+            {
+                //add alert no post to update
+            }
+            else
+            {
+                var result = await http.PutAsJsonAsync<Asset>("api/Asset", asset);
+            }
+
+            NavManager.NavigateTo("asset");
+        }
+        else
+        {
+            invalidLeft = true;
+        }
+
+    }
+
+    protected void OnSumbitClicked()
+    {
+        showLeftDate = true;
+    }
+
+    protected void OnCancelClicked()
+    {
+        NavManager.NavigateTo("asset");
+    }
+
+    private string lineChartLabelsB = "";
+    private string lineChartDataB = "";
+
+    private bool yearChanged = false;
+    private int yearStart = 0;
+    private int yearEnd = 0;
+
+    private bool invalidYears = false;
+
+    protected void OnChangeClicked()
+    {
+        lineChartDataB = "";
+        lineChartLabelsB = "";
+
+        if (asset != null && yearStart < yearEnd)
+        {
+            //ensure years are valid for the asset being in the inventory
+            if (yearStart >= asset.EnteredInventory.Year && yearStart <= asset.LeftInventroy.Year)
+            {
+                if (yearEnd >= asset.EnteredInventory.Year && yearEnd <= asset.LeftInventroy.Year)
+                {
+                    yearCount = 0;
+                    yearChanged = true;
+                    for (int i = yearStart; i <= yearEnd; i++, yearCount++)
+                    {
+                        lineChartDataB += (asset.StartingValue - (asset.AnnualDeprec * yearCount)).ToString() + ", ";
+                        lineChartLabelsB += i.ToString().Substring(2) + ", ";
+                    }
+
+                    //trim so strings are in proper form
+                    lineChartLabelsB = lineChartLabelsB.TrimEnd(' ');
+                    lineChartLabelsB = lineChartLabelsB.TrimEnd(',');
+                    lineChartDataB = lineChartDataB.TrimEnd(' ');
+                    lineChartDataB = lineChartDataB.TrimEnd(',');
+                    //put yearcount back to 0 for @for loop in html section
+                    yearCount = 0;
+                    invalidYears = false;
+                }
+                else
+                {
+                    invalidYears = true;
+                }
+            }
+            else
+            {
+                invalidYears = true;
+            }
+        }
+        else
+        {
+            invalidYears = true;
+        }
+
+    }
+}

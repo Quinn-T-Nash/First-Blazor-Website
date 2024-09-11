@@ -1,0 +1,195 @@
+﻿@using NashComp6.Shared.Models;
+@using WebAssemblyMan
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+@page "/AssetViewer/{Id:int}"
+@inject HttpClient Http
+@attribute [Authorize];
+
+<h3>Asset Information</h3>
+
+@if (asset is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h3> Asset is: @asset.Title</h3>
+    <p>Entered Inventory: @asset.EnteredInventory.ToString("D")</p>
+    <p>Starting Value: $@asset.StartingValue</p>
+    <p>Salvage Value: $@asset.SalvageValue</p>
+    <p>Left Inventory: @asset.LeftInventroy.ToString("D")</p>
+    <p>Annual Depreciation at $@asset.AnnualDeprec</p>
+
+    <div>
+        <h3>Change Years of Graph</h3>
+        <div class="form-group">
+            <label for="yearStart">Year Start</label>
+            <input type="year" id="startYear" class="form-control" @bind="yearStart" />
+            <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+        </div>
+
+        <div class="form-group">
+            <label for="yearEnd">Year End</label>
+            <input type="year" id="endYear" class="form-control" @bind="yearEnd" />
+            <small id="dateHelp" class="form-text text-muted">Enter a date</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary" @onclick="OnChangeClicked">Change</button>
+    </div>
+
+    <center>
+        @*Show a table of the year and the value and next to it the graph of it*@
+        <h2>Detailed View @asset.Title</h2>
+        <div class="row">
+            <div class="col-md-4">
+
+                @if (true) @*Always reset year count to 0*@
+                {
+                    yearCount = 0;
+                }
+
+                @for (int i = asset.EnteredInventory.Year; i <= asset.LeftInventroy.Year; i++, yearCount++)
+                {
+                    <label>Year @i      Value @(asset.StartingValue - (asset.AnnualDeprec * yearCount))</label>
+                    <br />
+                    <label>---------------------------------------------</label>
+                    <br />
+
+                }
+            </div>
+            @if (!yearChanged)
+            {
+                @if (!invalidYears)
+                {
+                    <div class="col-md-8">
+                        <LineChart InputSeries1=@lineChartData
+                                   XAxisLabels=@lineChartLabels
+                                   InputLabels="Asset Yearly Worth">
+                        </LineChart>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-8">
+                        <label>Must Pick Valid Years The Asset Was In Inventory (Year Start must be before Year End)</label>
+                    </div>
+                }
+            }
+            else
+            {
+                @if (!invalidYears)
+                {
+                    <div class="col-md-8">
+                        <LineChart InputSeries1=@lineChartDataB
+                                   XAxisLabels=@lineChartLabelsB
+                                   InputLabels="Asset Yearly Worth">
+                        </LineChart>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-8">
+                        <label>Must Pick Valid Years The Asset Was In Inventory (Year Start must be before Year End)</label>
+                    </div>
+                }
+            }
+
+        </div>
+    </center>
+}
+
+<a href="/asset">Back To Assets</a>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    protected Asset? asset;
+
+    private int yearCount = 0;
+    private string lineChartLabels = "";
+    private string lineChartData = "";
+    private string lineChartLabelsB = "";
+    private string lineChartDataB = "";
+
+    private bool yearChanged = false;
+    private int yearStart = 0;
+    private int yearEnd = 0;
+
+    private bool invalidYears = false;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        asset = await Http.GetFromJsonAsync<Asset>($"api/asset/{Id}");
+
+        if (asset != null) //repeated code in AssitEdit page, can make it a function if not late
+        {
+            //get the value each year of depreciation and truncate the year to 2 digit years for space on page
+            for (int i = asset.EnteredInventory.Year; i <= asset.LeftInventroy.Year; i++, yearCount++)
+            {
+                lineChartData += (asset.StartingValue - (asset.AnnualDeprec * yearCount)).ToString() + ", ";
+                lineChartLabels += i.ToString().Substring(2) + ", ";
+            }
+
+            //trim so strings are in proper form
+            lineChartLabels = lineChartLabels.TrimEnd(' ');
+            lineChartLabels = lineChartLabels.TrimEnd(',');
+            lineChartData = lineChartData.TrimEnd(' ');
+            lineChartData = lineChartData.TrimEnd(',');
+            //put yearcount back to 0 for @for loop in html section
+            yearCount = 0;
+
+            yearChanged = false;
+        }
+    }
+
+    protected void OnChangeClicked()
+    {
+        lineChartDataB = "";
+        lineChartLabelsB = "";
+
+            if (asset != null && yearStart < yearEnd)
+        {
+            //ensure years are valid for the asset being in the inventory
+            if (yearStart >= asset.EnteredInventory.Year && yearStart <= asset.LeftInventroy.Year)
+            {
+                if (yearEnd >= asset.EnteredInventory.Year && yearEnd <= asset.LeftInventroy.Year)
+                {
+                    yearCount = 0;
+                    yearChanged = true;
+                    for (int i = yearStart; i <= yearEnd; i++, yearCount++)
+                    {
+                        lineChartDataB += (asset.StartingValue - (asset.AnnualDeprec * yearCount)).ToString() + ", ";
+                        lineChartLabelsB += i.ToString().Substring(2) + ", ";
+                    }
+
+                    //trim so strings are in proper form
+                    lineChartLabelsB = lineChartLabelsB.TrimEnd(' ');
+                    lineChartLabelsB = lineChartLabelsB.TrimEnd(',');
+                    lineChartDataB = lineChartDataB.TrimEnd(' ');
+                    lineChartDataB = lineChartDataB.TrimEnd(',');
+                    //put yearcount back to 0 for @for loop in html section
+                    yearCount = 0;
+                    invalidYears = false;
+                }
+                else
+                {
+                    invalidYears = true;
+                }
+            }
+            else
+            {
+                invalidYears = true;
+            }
+        }
+        else
+        {
+            invalidYears = true;
+        }
+
+    }
+
+}

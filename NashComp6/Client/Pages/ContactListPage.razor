@@ -1,0 +1,119 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using NashComp6.Shared.Models;
+
+@page "/EandD/contactList"
+@inject HttpClient http;
+@inject NavigationManager NavManager
+
+<h3>ContactListPage</h3>
+
+@if (contacts != null)
+{
+    <div class="row">
+        <div class="col">
+            @foreach (var contact in contacts)
+            {
+                <p>
+                    @contact.FirstName @contact.LastName
+                    <br />
+                    <InputDate class="form-control" id="dateEnteredInven" placeholder="Enter date"
+                    @bind-Value="contact.RespondedTo" />
+
+
+                    <button type="button" class="btn btn-primary" @onclick="() => OnEditClick(contact.Id, contact.RespondedTo)">Edit</button>
+                    <br />
+                    -----------------------------------------
+                </p>
+            }
+        </div>
+
+        <AuthorizeView Roles="Eanddmarketing">
+            <div class="col">
+                <label for="allContacts">Show Only Contacts That Have Not Been Responded Too: </label>
+                <InputCheckbox @bind-Value="showOnly" @onclick="() => OnChanged()"/>
+
+                @foreach (var contact in contacts)
+                {
+                    <p>
+                        @contact.FirstName @contact.LastName
+                        <br />
+                        <label for="remarks">Remarks</label>
+                        <InputText class="form-control" id="remark" aria-describedby="Remark on contact" placeholder="Enter Remark" @bind-Value="contact.Remarks" />
+
+                        <small id="remarkHelp" class="form-text text-muted">Enter a Remark</small>
+
+                        <button type="button" class="btn btn-primary" @onclick="() => OnEditClick(contact.Id, contact.Remarks)">Edit</button>
+                        <br />
+                        -----------------------------------------
+                    </p>
+                    
+                }
+            </div>
+        </AuthorizeView>
+    </div>
+
+}
+
+@code {
+    private List<Contact>? contacts;
+    private Contact? contact = new Contact();
+    private DateTime? date = DateTime.Now;
+    private bool showOnly = false;
+
+    private int page = 1;
+    private int pageSize = 9;
+    private int test = 9;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        contacts = await http.GetFromJsonAsync<List<Contact>>($"api/contact/{page}/{pageSize}");
+    }
+
+    protected async Task OnChanged()
+    {
+        showOnly = !showOnly;
+
+        if(showOnly)  //Cannot pass in DateTime date a string for json for somereason
+        {
+            contacts = await http.GetFromJsonAsync<List<Contact>>($"api/contact/{page}/{pageSize}/{test}");
+        }
+        else
+        {
+            contacts = await http.GetFromJsonAsync<List<Contact>>($"api/contact");
+        }
+    }
+
+    protected async Task OnEditClick(int id, DateTime? responeded)
+    {
+        contact = await http.GetFromJsonAsync<Contact>($"api/contact/{id}");
+
+        if (contact != null)
+        {
+            contact.RespondedTo = responeded;
+
+            var result = await http.PutAsJsonAsync<Contact>("api/contact", contact);
+        }
+
+        NavManager.NavigateTo("/EandD/contactList");
+
+    }
+
+    //overlaoded with string for remarks
+    protected async Task OnEditClick(int id, string remark)
+    {
+        contact = await http.GetFromJsonAsync<Contact>($"api/contact/{id}");
+
+        if (contact != null)
+        {
+            contact.Remarks = remark;
+
+            var result = await http.PutAsJsonAsync<Contact>("api/contact", contact);
+        }
+
+        NavManager.NavigateTo("/EandD/contactList");
+
+    }
+}

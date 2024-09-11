@@ -1,0 +1,86 @@
+﻿@page "/investmentCalc"
+@using NashComp6.Shared.Models;
+
+<h3>InvestmentCalcPage</h3>
+
+<p>
+    <label>Principal (Initial investment or loan amount)</label>
+    <br />
+    <InputNumber @bind-Value="calc.Principal" />
+</p>
+
+<p>
+    <label>Interest (Interest rate percentage as a decimal)</label>
+    <br />
+    <InputNumber @bind-Value="calc.Interest" />
+</p>
+
+<p>
+    <label>Compound Per Year (i.e Number of times interest is compounded in a year)</label>
+    <br />
+    <InputNumber @bind-Value="calc.CompPerYr" @oninput="ValidateInputCompound" />
+</p>
+
+<p>
+    <label>Years (Whole years, i.e will not accept 15.5 years)</label>
+    <br />
+    <InputNumber @bind-Value="calc.Years" @oninput="ValidateInputYear" />
+</p>
+
+<p>
+    
+    <button @onclick="OnSumbitClick" >Submit</button>
+</p>
+@if (calc.errors || errorCompound || yearError)
+{
+    <label style="color:red;">Must enter positive integers for Years and Compound Per Year.</label>
+    <label style="color:red;">Must enter positive doubles for Principal and Interest.</label>
+}
+else
+{
+    <br />
+    <label>Future Value is: @result</label>
+}
+
+
+@code {
+    private InvestmentCalc calc = new InvestmentCalc();
+    private double result;
+    private bool yearError;
+    private bool errorCompound;
+
+    private void OnSumbitClick()
+    {
+        if (calc.errors == true)
+        {
+            result = 0;
+            return;
+        }
+        result = calc.FutureValue;
+    }
+
+    //if we input is not an int on years and compound, show error
+    private void ValidateInputYear(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int okay))
+        {
+            yearError = false;
+        }
+        else
+        {
+            yearError = true;
+        }
+    }
+
+    private void ValidateInputCompound(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int okay))
+        {
+            errorCompound = false;
+        }
+        else
+        {
+            errorCompound = true;
+        }
+    }
+}

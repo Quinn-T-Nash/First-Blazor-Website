@@ -1,0 +1,94 @@
+﻿@page "/asset"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using NashComp6.Shared.Models;
+@inject HttpClient http;
+@inject NavigationManager NavManager
+@attribute [Authorize];
+
+<h3>All Current Assets</h3>
+
+@if (assets == null)
+{
+    <p>Loading</p>
+}
+else
+{
+    <p>
+        <button type="button" class="btn btn-primary" @onclick="OnAddPreviousClickAsync">Previous</button>
+        <button type="button" class="btn btn-primary" @onclick="OnAddNextClickAsync">Next</button>
+    </p>
+
+    @foreach (var asset in assets)
+    {
+        <p>
+            <a href="AssetViewer/@asset.Id">@asset.Title</a>
+            <br />
+            Entered Inventory: @asset.EnteredInventory.ToString("D") 
+            <br />
+            Left Inventory: @asset.LeftInventroy.ToString("D")
+            <br />
+            Starting Value $@asset.StartingValue.ToString() | 
+            Salvage Value $@asset.SalvageValue.ToString() 
+            <br />
+            Annual Depreciation is : $@asset.AnnualDeprec.ToString()
+
+            <button type="button" class="btn btn-primary" @onclick="() => OnEditClick(asset.Id)">Edit</button>
+            <button type="button" class="btn btn-danger" @onclick="() => OnDeleteClickAsync(asset.Id)">Delete</button>
+            <br />
+            ------------------------
+        </p>
+    }
+    <p>
+        <button type="button" class="btn btn-primary" @onclick="OnAddAssetClick">Add Asset</button>
+    </p>
+}
+
+@code {
+    private List<Asset>? assets;
+    private int page = 1;
+    private int pageSize = 9; //for some reason 10 was not working and not finding the route in controller
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        assets = await http.GetFromJsonAsync<List<Asset>>($"api/asset/{page}/{pageSize}");
+    }
+
+    protected async Task OnAddPreviousClickAsync()
+    {
+        if (page > 1)
+        {
+            assets = await http.GetFromJsonAsync<List<Asset>>($"api/asset/{--page}/{pageSize}");
+        }
+    }
+
+    protected async Task OnAddNextClickAsync()
+    {
+        var nextPageAssets = await http.GetFromJsonAsync<List<Asset>>($"api/asset/{page + 1}/{pageSize}");
+
+        if (nextPageAssets?.Count > 0)
+        {
+            assets = nextPageAssets;
+            page++;
+        }
+    }
+
+    protected async Task OnDeleteClickAsync(int id)
+    {
+        var result = await http.DeleteAsync($"api/asset/{id}");
+        NavManager.NavigateTo($"/Asset", true); //force reloads the page with the true
+    }
+
+    protected async Task OnEditClick(int id)
+    {
+        NavManager.NavigateTo($"/editasset/{id}", true); //force reloads the page with the true
+    }
+
+    protected void OnAddAssetClick()
+    {
+        //Navigate to a detail Page
+        NavManager.NavigateTo("editasset");
+    }
+}
